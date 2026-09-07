@@ -91,7 +91,7 @@ export default function Home() {
     try {
       const image = await CapCamera.getPhoto({
         quality: 80,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.DataUrl,
         source: source,
         width: 1024
