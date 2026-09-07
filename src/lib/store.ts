@@ -1,11 +1,37 @@
 'use client';
 
-// 로컬 스토리지 키 관리
 export const STORAGE_KEYS = {
   SEASONINGS: 'naengpa_seasonings',
   DAILY_USAGE: 'naengpa_daily_usage', // { date: 'YYYY-MM-DD', count: number }
   RECIPE_HISTORY: 'naengpa_recipe_history', // Recipe[]
   NICKNAME: 'naengpa_nickname',
+  PANTRY: 'naengpa_pantry', // string[]
+};
+
+export const getStoredPantry = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  const stored = localStorage.getItem(STORAGE_KEYS.PANTRY);
+  return stored ? JSON.parse(stored) : [];
+};
+
+export const setStoredPantry = (items: string[]) => {
+  if (typeof window === 'undefined') return;
+  // 중복 제거 및 공백 정리
+  const unique = Array.from(new Set(items.map(i => i.trim()).filter(Boolean)));
+  localStorage.setItem(STORAGE_KEYS.PANTRY, JSON.stringify(unique));
+};
+
+export const addPantryItems = (items: string[]) => {
+  const current = getStoredPantry();
+  setStoredPantry([...current, ...items]);
+};
+
+export const removePantryItems = (itemsToRemove: string[]) => {
+  const current = getStoredPantry();
+  const removeSet = new Set(itemsToRemove.map(i => i.trim().toLowerCase()));
+  const updated = current.filter(item => !removeSet.has(item.trim().toLowerCase()));
+  setStoredPantry(updated);
+  return updated;
 };
 
 export const getStoredNickname = () => {

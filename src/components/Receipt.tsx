@@ -1,10 +1,8 @@
-'use client';
-
 import { useRef, useState, useEffect } from 'react';
-import { X, Download, Share2 } from 'lucide-react';
+import { X, Share2, Camera, Image as ImageIcon, Trash2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
-
+import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { getStoredNickname } from '@/lib/store';
 
 interface ReceiptProps {
@@ -18,10 +16,28 @@ export default function Receipt({ recipeTitle, savings, eventCode, onClose }: Re
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [nickname, setNickname] = useState('지구방위대');
+  const [dishPhoto, setDishPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     setNickname(getStoredNickname());
   }, []);
+
+  const handleTakeDishPhoto = async () => {
+    try {
+      const image = await CapCamera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Prompt, // Prompt allows choosing Camera or Photos
+        width: 800
+      });
+      if (image.dataUrl) {
+        setDishPhoto(image.dataUrl);
+      }
+    } catch (e) {
+      console.error('Dish photo error', e);
+    }
+  };
 
   const handleShare = async () => {
     if (!receiptRef.current) return;
@@ -94,7 +110,24 @@ export default function Receipt({ recipeTitle, savings, eventCode, onClose }: Re
           </div>
         </div>
 
-        <div className="space-y-2 text-sm font-mono mb-8 relative z-10 text-gray-700">
+        {/* Finished Dish Polaroid Photo (if added) */}
+        {dishPhoto && (
+          <div className="my-4 p-2 bg-white rounded-lg shadow-md border border-gray-200 rotate-[-1deg] relative z-10 transition-transform">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={dishPhoto} alt="Cooked Dish" className="w-full h-40 object-cover rounded" />
+            <div className="flex justify-between items-center mt-1.5 px-1">
+              <span className="text-[11px] font-mono text-gray-500">📸 내가 직접 만든 요리</span>
+              <button 
+                onClick={() => setDishPhoto(null)}
+                className="text-gray-400 hover:text-red-500 p-0.5"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2 text-sm font-mono mb-6 relative z-10 text-gray-700">
           <div className="flex justify-between items-center opacity-60">
             <span>예상 배달비용</span>
             <span className="line-through">{savings.toLocaleString()}원</span>
@@ -105,25 +138,37 @@ export default function Receipt({ recipeTitle, savings, eventCode, onClose }: Re
           </div>
         </div>
 
-        <div className="flex flex-col items-center mt-8 relative z-10">
+        <div className="flex flex-col items-center mt-6 relative z-10">
           {/* Fake Barcode */}
-          <div className="flex gap-[2px] h-12 w-full justify-center opacity-70 mb-4">
+          <div className="flex gap-[2px] h-10 w-full justify-center opacity-70 mb-3">
             {Array.from({length: 30}).map((_, i) => (
               <div key={i} style={{ width: Math.random() * 4 + 1 + 'px', backgroundColor: '#333' }}></div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 font-mono text-center">오늘도 냉장고 파먹기 성공!<br/>탄소 배출 절감에 동참해주셔서 감사합니다.</p>
+          <p className="text-[11px] text-gray-400 font-mono text-center">오늘도 냉장고 파먹기 대성공!<br/>탄소 배출 절감에 동참해주셔서 감사합니다.</p>
         </div>
       </div>
 
-      <button 
-        onClick={handleShare}
-        disabled={isProcessing}
-        className="mt-8 px-8 py-3 bg-white text-gray-900 rounded-full font-bold flex items-center gap-2 shadow-2xl hover:scale-105 active:scale-95 transition-transform"
-      >
-        <Share2 size={20} />
-        {isProcessing ? '영수증 굽는 중...' : '영수증 자랑하기'}
-      </button>
+      {/* Buttons */}
+      <div className="flex gap-2.5 mt-6 w-full max-w-sm">
+        {!dishPhoto && (
+          <button 
+            onClick={handleTakeDishPhoto}
+            className="flex-1 py-3 px-4 bg-white/20 text-white rounded-full font-bold flex items-center justify-center gap-1.5 backdrop-blur-md hover:bg-white/30 text-xs transition"
+          >
+            <Camera size={16} />
+            <span>완성 사진 넣기</span>
+          </button>
+        )}
+        <button 
+          onClick={handleShare}
+          disabled={isProcessing}
+          className="flex-1 py-3 px-5 bg-orange-500 text-white rounded-full font-bold flex items-center justify-center gap-1.5 shadow-xl hover:bg-orange-600 active:scale-95 transition text-xs"
+        >
+          <Share2 size={16} />
+          {isProcessing ? '영수증 굽는 중...' : '영수증 자랑하기'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,13 +1,21 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Camera, Image as ImageIcon, Send, Loader2, X, History } from 'lucide-react';
+import { Settings, Camera, Image as ImageIcon, Send, Loader2, X, History, Refrigerator, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { App as CapApp } from '@capacitor/app';
 import { AdMob, AdOptions } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
-import { getStoredSeasonings, getDailyUsage, decrementDailyUsage, rewardAdCharge, getRecipeHistory, addRecipeHistory } from '@/lib/store';
+import { 
+  getStoredSeasonings, 
+  getDailyUsage, 
+  decrementDailyUsage, 
+  rewardAdCharge, 
+  getRecipeHistory, 
+  addRecipeHistory,
+  getStoredPantry,
+  addPantryItems,
+  setStoredPantry
+} from '@/lib/store';
 import AdBanner from '@/components/AdBanner';
 import RecipeModal, { Recipe } from '@/components/RecipeModal';
 import Receipt from '@/components/Receipt';
@@ -21,6 +29,13 @@ export default function Home() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [extraText, setExtraText] = useState('');
   
+  // v1.1 New states: Servings, Filters, Pantry
+  const [servings, setServings] = useState('1인분');
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [pantry, setPantry] = useState<string[]>([]);
+  const [newPantryInput, setNewPantryInput] = useState('');
+  const [showPantrySection, setShowPantrySection] = useState(true);
+
   const [isLoading, setIsLoading] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -55,6 +70,7 @@ export default function Home() {
       setSeasonings(stored);
       setDailyUsageState(getDailyUsage());
       setHistoryItems(getRecipeHistory());
+      setPantry(getStoredPantry());
       setIsReady(true);
     }
     return () => clearTimeout(timer);
@@ -147,9 +163,31 @@ export default function Home() {
     }
   };
 
+  const toggleFilter = (filterName: string) => {
+    setSelectedFilters(prev => 
+      prev.includes(filterName) 
+        ? prev.filter(f => f !== filterName) 
+        : [...prev, filterName]
+    );
+  };
+
+  const handleAddManualPantry = () => {
+    if (!newPantryInput.trim()) return;
+    const items = newPantryInput.split(',').map(s => s.trim()).filter(Boolean);
+    addPantryItems(items);
+    setPantry(getStoredPantry());
+    setNewPantryInput('');
+  };
+
+  const handleRemovePantryItem = (itemToRemove: string) => {
+    const updated = pantry.filter(i => i !== itemToRemove);
+    setStoredPantry(updated);
+    setPantry(updated);
+  };
+
   const submitRecipeRequest = async () => {
-    if (photos.length === 0 && !extraText.trim()) {
-      alert('재료 사진을 올리거나 텍스트를 입력해주세요.');
+    if (photos.length === 0 && !extraText.trim() && pantry.length === 0) {
+      alert('재료 사진을 올리거나 냉장고 보관 재료를 추가해주세요.');
       return;
     }
 
@@ -179,7 +217,10 @@ export default function Home() {
         body: JSON.stringify({
           imagesBase64: photos,
           extraText,
-          defaultSeasonings: seasonings
+          defaultSeasonings: seasonings,
+          servings,
+          filters: selectedFilters,
+          pantryIngredients: pantry
         })
       });
 
@@ -192,12 +233,19 @@ export default function Home() {
       
       if (!res.ok) throw new Error('서버 오류가 발생했습니다.');
       
+      // Auto-add newly detected ingredients to pantry
+      if (data.detectedIngredients && data.detectedIngredients.length > 0) {
+        addPantryItems(data.detectedIngredients);
+        setPantry(getStoredPantry());
+      }
+
       // Decrease count
       decrementDailyUsage();
       setDailyUsageState(getDailyUsage());
       
       const newRecipes = data.recipes.map((r: any) => ({
         ...r,
+        servings,
         eventCode: isLivePhoto ? `LIVE-${Math.random().toString(36).substring(2, 8).toUpperCase()}` : undefined
       }));
 
@@ -260,8 +308,13 @@ export default function Home() {
         {recipes ? (
           <div className="space-y-4">
             <div className="flex justify-between items-end mb-2">
-              <h2 className="text-lg font-bold">추천 레시피 3종</h2>
-              <button onClick={() => setRecipes(null)} className="text-sm text-gray-500 underline">다시하기</button>
+              <div>
+                <h2 className="text-lg font-black text-gray-900">추천 레시피 3종</h2>
+                <p className="text-xs text-gray-500 font-medium">{servings} 맞춤 황금 레시피</p>
+              </div>
+              <button onClick={() => setRecipes(null)} className="text-xs text-orange-600 font-bold underline">
+                다른 조건으로 다시하기
+              </button>
             </div>
             {recipes.map((recipe, idx) => (
               <div 
@@ -270,80 +323,213 @@ export default function Home() {
                 className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded text-gray-600">{recipe.category}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full">
+                      {recipe.category}
+                    </span>
+                    {recipe.estimatedCalories && (
+                      <span className="text-xs font-medium text-gray-400">
+                        🔥 {recipe.estimatedCalories}kcal
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-gray-400">⏱ {recipe.time}</span>
                 </div>
-                <h3 className="font-bold text-gray-800 text-lg mb-1">{recipe.title}</h3>
-                <p className="text-sm text-gray-500 line-clamp-1">{recipe.description}</p>
+                <h3 className="font-bold text-gray-800 text-base mb-1">{recipe.title}</h3>
+                <p className="text-xs text-gray-500 line-clamp-1">{recipe.description}</p>
+                {recipe.upgradeTip && (
+                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-purple-700 font-semibold bg-purple-50/60 px-2 py-1 rounded-md">
+                    <span>✨ 컬리 꿀조합: {recipe.upgradeTip.ingredient}</span>
+                    <span className="text-[10px] text-purple-500 underline">상세보기</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         ) : (
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-800 mb-4 text-center">냉장고 안 재료를 알려주세요!</h2>
+          <div className="space-y-4">
             
-            <div className="flex gap-3 mb-4">
-              <button 
-                onClick={() => handleTakeAction(CameraSource.Camera)}
-                className="flex-1 flex flex-col items-center justify-center gap-2 p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 active:bg-gray-100"
-              >
-                <Camera className="text-gray-400" />
-                <span className="text-sm text-gray-600 font-medium">사진 촬영</span>
-              </button>
-              <button 
-                onClick={() => handleTakeAction(CameraSource.Photos)}
-                className="flex-1 flex flex-col items-center justify-center gap-2 p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 active:bg-gray-100"
-              >
-                <ImageIcon className="text-gray-400" />
-                <span className="text-sm text-gray-600 font-medium">앨범 선택</span>
-              </button>
-            </div>
+            {/* 내 냉장고 재료함 (Pantry Box) */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Refrigerator className="text-orange-500" size={18} />
+                  <h3 className="font-bold text-gray-800 text-sm">내 냉장고 보관 재료</h3>
+                  <span className="text-xs font-bold px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full">
+                    {pantry.length}개
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setShowPantrySection(!showPantrySection)}
+                  className="text-xs text-gray-400 font-medium"
+                >
+                  {showPantrySection ? '접기' : '펼치기'}
+                </button>
+              </div>
 
-            {photos.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
-                {photos.map((photo, idx) => (
-                  <div key={idx} className="relative rounded-xl overflow-hidden bg-black w-24 h-24 flex-shrink-0 snap-center shadow-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photo} alt={`Ingredient ${idx + 1}`} className="w-full h-full object-cover" />
+              {showPantrySection && (
+                <div className="space-y-3 pt-1">
+                  {pantry.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                      {pantry.map((item, idx) => (
+                        <span 
+                          key={idx} 
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg"
+                        >
+                          {item}
+                          <button 
+                            onClick={() => handleRemovePantryItem(item)}
+                            className="text-gray-400 hover:text-red-500"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center py-2">
+                      냉장고가 비어있어요. 사진을 찍으면 자동으로 채워집니다!
+                    </p>
+                  )}
+
+                  {/* Manual Add Input */}
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      value={newPantryInput}
+                      onChange={(e) => setNewPantryInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddManualPantry()}
+                      placeholder="재료 직접 추가 (쉼표로 구분: 두부, 계란)"
+                      className="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-orange-400"
+                    />
                     <button 
-                      onClick={() => setPhotos(prev => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition"
+                      onClick={handleAddManualPantry}
+                      className="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-bold flex items-center gap-1"
                     >
-                      <X size={14} />
+                      <Plus size={14} />
+                      추가
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
-
-            <textarea 
-              value={extraText}
-              onChange={(e) => setExtraText(e.target.value)}
-              placeholder="사진 외에 더 있는 재료나 조미료를 적어주세요."
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-300 resize-none mb-4"
-              rows={3}
-            />
-
-            <button 
-              onClick={submitRecipeRequest}
-              disabled={isLoading || (photos.length === 0 && !extraText.trim())}
-              className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-bold flex flex-col items-center justify-center gap-1 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
-            >
-              {isLoading ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="animate-spin" size={20} />
-                    <span>AI 셰프가 고민중...</span>
-                  </div>
-                  <span className="text-[10px] font-normal opacity-80 mt-0.5">{TIPS[tipIndex]}</span>
-                </>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Send size={18} />
-                  <span>요리 추천받기</span>
                 </div>
               )}
-            </button>
+            </div>
+
+            {/* Main Input Card */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+              <h2 className="font-bold text-gray-800 text-center text-sm">새로운 재료 사진 찍기 / 추가</h2>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => handleTakeAction(CameraSource.Camera)}
+                  className="flex-1 flex flex-col items-center justify-center gap-2 p-3.5 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 active:bg-gray-100 transition"
+                >
+                  <Camera className="text-gray-400" size={22} />
+                  <span className="text-xs text-gray-700 font-bold">사진 촬영</span>
+                </button>
+                <button 
+                  onClick={() => handleTakeAction(CameraSource.Photos)}
+                  className="flex-1 flex flex-col items-center justify-center gap-2 p-3.5 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 active:bg-gray-100 transition"
+                >
+                  <ImageIcon className="text-gray-400" size={22} />
+                  <span className="text-xs text-gray-700 font-bold">앨범 선택</span>
+                </button>
+              </div>
+
+              {photos.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto pb-1 snap-x">
+                  {photos.map((photo, idx) => (
+                    <div key={idx} className="relative rounded-xl overflow-hidden bg-black w-20 h-20 flex-shrink-0 snap-center shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photo} alt={`Ingredient ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button 
+                        onClick={() => setPhotos(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <textarea 
+                value={extraText}
+                onChange={(e) => setExtraText(e.target.value)}
+                placeholder="추가로 더 있는 재료나 양념을 적어주세요."
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-orange-300 resize-none"
+                rows={2}
+              />
+
+              {/* Servings Selector (인원수 선택) */}
+              <div className="pt-1">
+                <label className="block text-xs font-bold text-gray-700 mb-2">🍽️ 요리 인원수</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['1인분', '2인분', '3~4인분'].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setServings(s)}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all ${
+                        servings === s
+                          ? 'bg-orange-500 text-white shadow-md shadow-orange-100 scale-[1.02]'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter Chips (상황별 맞춤 필터) */}
+              <div className="pt-1">
+                <label className="block text-xs font-bold text-gray-700 mb-2">✨ 맞춤 조리 조건 (다중 선택)</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    '👶 아이용(안 맵게)',
+                    '🥗 다이어트(저칼로리)',
+                    '⚡ 전자레인지 전용',
+                    '🔥 에어프라이어'
+                  ].map((filter) => {
+                    const isSelected = selectedFilters.includes(filter);
+                    return (
+                      <button
+                        key={filter}
+                        onClick={() => toggleFilter(filter)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          isSelected 
+                            ? 'bg-orange-100 text-orange-700 border border-orange-300 font-bold' 
+                            : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button 
+                onClick={submitRecipeRequest}
+                disabled={isLoading || (photos.length === 0 && !extraText.trim() && pantry.length === 0)}
+                className="w-full py-3.5 bg-orange-500 text-white rounded-xl font-bold flex flex-col items-center justify-center gap-1 disabled:bg-gray-300 disabled:text-gray-500 transition-colors shadow-lg shadow-orange-100"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="animate-spin" size={20} />
+                      <span>AI 셰프가 고민중...</span>
+                    </div>
+                    <span className="text-[10px] font-normal opacity-80 mt-0.5">{TIPS[tipIndex]}</span>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Send size={18} />
+                    <span>{servings} 맞춤 요리 추천받기</span>
+                  </div>
+                )}
+              </button>
+            </div>
           </div>
         )}
       </main>
@@ -383,7 +569,10 @@ export default function Home() {
         <RecipeModal 
           recipe={selectedRecipe} 
           onClose={() => setSelectedRecipe(null)} 
-          onShowReceipt={() => setShowReceipt(true)}
+          onCookDone={() => {
+            setShowReceipt(true);
+            setPantry(getStoredPantry());
+          }}
         />
       )}
 
