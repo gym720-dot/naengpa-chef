@@ -22,7 +22,7 @@ export interface Recipe {
   upgradeTip?: {
     ingredient: string;
     description: string;
-    kurlySearchKeyword: string;
+    searchKeyword: string;
   };
 }
 
@@ -47,6 +47,13 @@ export default function RecipeModal({ recipe, onClose, onCookDone }: RecipeModal
 
   const openKurlySearch = (keyword: string) => {
     const url = `https://www.kurly.com/search?sword=${encodeURIComponent(keyword)}`;
+    window.open(url, '_blank');
+  };
+
+  const openCoupangSearch = (keyword: string) => {
+    // 향후 쿠팡 파트너스 API를 연동하여 딥링크(link.coupang.com)로 변환할 수 있습니다.
+    // 현재는 단순 쿠팡 검색 링크로 연결됩니다.
+    const url = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(keyword)}`;
     window.open(url, '_blank');
   };
 
@@ -131,22 +138,30 @@ export default function RecipeModal({ recipe, onClose, onCookDone }: RecipeModal
 
           {/* Upgrade Tip for Kurly/Coupang M&A Vision */}
           {recipe.upgradeTip && (
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100 space-y-2">
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border border-purple-100 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-purple-700 flex items-center gap-1">
                   <ShoppingBag size={14} />
-                  컬리 꿀조합 +1 추천 재료
+                  꿀조합 +1 추천 재료
                 </span>
-                <button 
-                  onClick={() => openKurlySearch(recipe.upgradeTip!.kurlySearchKeyword)}
-                  className="text-[11px] text-purple-600 font-bold flex items-center gap-0.5 hover:underline"
-                >
-                  컬리에서 보기 <ExternalLink size={11} />
-                </button>
               </div>
               <p className="text-xs text-purple-900 font-medium leading-relaxed">
                 ✨ <strong className="text-purple-700">[{recipe.upgradeTip.ingredient}]</strong> {recipe.upgradeTip.description}
               </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button 
+                  onClick={() => openKurlySearch(recipe.upgradeTip!.searchKeyword)}
+                  className="flex-1 py-2 text-[11px] font-bold bg-purple-100 text-purple-700 rounded-lg flex items-center justify-center gap-1 hover:bg-purple-200 transition"
+                >
+                  컬리에서 보기 <ExternalLink size={11} />
+                </button>
+                <button 
+                  onClick={() => openCoupangSearch(recipe.upgradeTip!.searchKeyword)}
+                  className="flex-1 py-2 text-[11px] font-bold bg-red-50 text-red-600 rounded-lg border border-red-100 flex items-center justify-center gap-1 hover:bg-red-100 transition"
+                >
+                  쿠팡에서 보기 <ExternalLink size={11} />
+                </button>
+              </div>
             </div>
           )}
 

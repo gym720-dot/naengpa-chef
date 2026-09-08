@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       "upgradeTip": {
         "ingredient": "트러플 오일",
         "description": "완성 후 트러플 오일 2~3방울을 둘러주면 파인다이닝 레스토랑 풍미로 변신!",
-        "kurlySearchKeyword": "트러플 오일"
+        "searchKeyword": "트러플 오일"
       }
     }
   ]
