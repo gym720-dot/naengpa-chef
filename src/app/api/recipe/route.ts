@@ -102,13 +102,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    contents.push({ text: prompt });
+    contents.push(prompt);
 
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
+      'gemini-1.5-pro',
     ].filter(Boolean) as string[];
 
     let responseText: string | null = null;
@@ -140,14 +140,14 @@ export async function POST(req: NextRequest) {
     } else {
       console.error('All Gemini models failed:', lastError);
       return NextResponse.json({ 
-        error: '냉파셰프 서버에 일시적인 요청이 몰렸습니다. 3초 후 다시 시도해주세요!' 
+        error: '냉파셰프 연결 오류: ' + (lastError?.message || '잠시 후 다시 시도해주세요!') 
       }, { status: 500, headers: corsHeaders });
     }
 
   } catch (error: any) {
     console.error('Gemini API Handler Error:', error);
     return NextResponse.json({ 
-      error: '냉파셰프 서버에 일시적인 요청이 몰렸습니다. 3초 후 다시 시도해주세요!' 
+      error: '냉파셰프 처리 오류: ' + (error?.message || '잠시 후 다시 시도해주세요!') 
     }, { status: 500, headers: corsHeaders });
   }
 }
