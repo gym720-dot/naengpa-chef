@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -15,6 +13,16 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('Missing GEMINI_API_KEY environment variable');
+      return NextResponse.json({ 
+        error: 'GEMINI_API_KEY가 서버에 설정되지 않았습니다. Vercel 환경 변수를 확인해주세요.' 
+      }, { status: 500, headers: corsHeaders });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     const { 
       imagesBase64, 
       extraText, 
