@@ -150,16 +150,16 @@ export default function RecipeModal({ recipe, onClose, onCookDone }: RecipeModal
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button 
-                  onClick={() => openKurlySearch(recipe.upgradeTip!.searchKeyword)}
-                  className="flex-1 py-2 text-[11px] font-bold bg-purple-100 text-purple-700 rounded-lg flex items-center justify-center gap-1 hover:bg-purple-200 transition"
+                  onClick={() => openCoupangSearch(recipe.upgradeTip!.searchKeyword)}
+                  className="flex-[3] py-2.5 text-[12px] font-bold bg-[#0073E9] text-white rounded-lg shadow-md flex items-center justify-center gap-1 hover:bg-blue-700 active:scale-95 transition"
                 >
-                  컬리에서 보기 <ExternalLink size={11} />
+                  로켓배송으로 재료 겟하기 🚀
                 </button>
                 <button 
-                  onClick={() => openCoupangSearch(recipe.upgradeTip!.searchKeyword)}
-                  className="flex-1 py-2 text-[11px] font-bold bg-red-50 text-red-600 rounded-lg border border-red-100 flex items-center justify-center gap-1 hover:bg-red-100 transition"
+                  onClick={() => openKurlySearch(recipe.upgradeTip!.searchKeyword)}
+                  className="flex-[2] py-2.5 text-[11px] font-bold bg-white text-purple-600 rounded-lg border border-purple-200 flex items-center justify-center gap-1 hover:bg-purple-50 active:scale-95 transition"
                 >
-                  쿠팡에서 보기 <ExternalLink size={11} />
+                  컬리에서 보기
                 </button>
               </div>
             </div>
