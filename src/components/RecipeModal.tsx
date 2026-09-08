@@ -23,6 +23,7 @@ export interface Recipe {
     ingredient: string;
     description: string;
     searchKeyword: string;
+    coupangDeepLink?: string;
   };
 }
 
@@ -50,10 +51,14 @@ export default function RecipeModal({ recipe, onClose, onCookDone }: RecipeModal
     window.open(url, '_blank');
   };
 
-  const openCoupangSearch = (keyword: string) => {
-    // 향후 쿠팡 파트너스 API를 연동하여 딥링크(link.coupang.com)로 변환할 수 있습니다.
-    // 현재는 단순 쿠팡 검색 링크로 연결됩니다.
-    const url = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(keyword)}`;
+  const openCoupangSearch = (keywordOrUrl: string) => {
+    // If it's already a coupang short link (from our backend API)
+    if (keywordOrUrl.startsWith('http')) {
+      window.open(keywordOrUrl, '_blank');
+      return;
+    }
+    // Fallback: simple search
+    const url = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(keywordOrUrl)}`;
     window.open(url, '_blank');
   };
 
@@ -150,7 +155,7 @@ export default function RecipeModal({ recipe, onClose, onCookDone }: RecipeModal
               </p>
               <div className="flex items-center gap-2 pt-1">
                 <button 
-                  onClick={() => openCoupangSearch(recipe.upgradeTip!.searchKeyword)}
+                  onClick={() => openCoupangSearch(recipe.upgradeTip!.coupangDeepLink || recipe.upgradeTip!.searchKeyword)}
                   className="flex-[3] py-2.5 text-[12px] font-bold bg-[#0073E9] text-white rounded-lg shadow-md flex items-center justify-center gap-1 hover:bg-blue-700 active:scale-95 transition"
                 >
                   로켓배송으로 재료 겟하기 🚀

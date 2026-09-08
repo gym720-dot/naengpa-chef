@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import crypto from 'crypto';
 
+function getCoupangDeepLink(keyword: string): Promise<string> {
+  const accessKey = process.env.COUPANG_ACCESS_KEY;
+  const secretKey = process.env.COUPANG_SECRET_KEY;
+  
+  const searchUrl = `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(keyword)}`;
+  
+  if (!accessKey || !secretKey) {
+    return Promise.resolve(searchUrl);
+  }
+
+  const method = 'POST';
+  const url = '/v2/providers/affiliate_open_api/apis/openapi/v1/deeplink';
+  
+  const datetime = new Date().toISOString()
+      .replace(/[-:]/g, '')
+      .replace(/\..+/, '')
+      .replace('T', 'T') + 'Z'; 
+
+  const message = datetime + method + url;
+
+  const signature = crypto.createHmac('sha256', secretKey)
+      .update(message)
+      .digest('hex');
+
+  const authorization = `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${datetime}, signature=${signature}`;
+
+  return fetch(`https://api-gateway.coupang.com${url}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': authorization,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      coupangUrls: [searchUrl]
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.rCode === '0' && data.data && data.data.length > 0) {
+      return data.data[0].shortenUrl;
+    }
+    return searchUrl;
+  })
+  .catch((err) => {
+    console.error('Coupang API error:', err);
+    return searchUrl;
+  });
+}
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -137,6 +186,16 @@ export async function POST(req: NextRequest) {
     if (responseText) {
       const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(jsonStr);
+      
+      // Inject Coupang Deep Link
+      if (parsed.recipes) {
+        for (const recipe of parsed.recipes) {
+          if (recipe.upgradeTip && recipe.upgradeTip.searchKeyword) {
+            recipe.upgradeTip.coupangDeepLink = await getCoupangDeepLink(recipe.upgradeTip.searchKeyword);
+          }
+        }
+      }
+      
       return NextResponse.json(parsed, { headers: corsHeaders });
     } else {
       console.error('All Gemini models failed:', lastError);
