@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings, Camera, Image as ImageIcon, Send, Loader2, X, History, Refrigerator, Plus, Sparkles, Trash2 } from 'lucide-react';
