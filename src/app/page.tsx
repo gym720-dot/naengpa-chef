@@ -60,10 +60,10 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    // Hide splash after 2 seconds
+    // Hide splash after 1.5 seconds
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2000);
+    }, 1500);
 
     const stored = getStoredSeasonings();
     if (!stored || stored.length === 0) {
@@ -73,8 +73,8 @@ export default function Home() {
       setDailyUsageState(getDailyUsage());
       setHistoryItems(getRecipeHistory());
       setPantry(getStoredPantry());
-      setIsReady(true);
     }
+    setIsReady(true);
     return () => clearTimeout(timer);
   }, [router]);
 
@@ -268,20 +268,30 @@ export default function Home() {
     }
   };
 
-  if (!isReady || showSplash) {
-    return (
-      <div className="min-h-screen bg-orange-500 flex flex-col items-center justify-center text-white relative">
-        <div className="w-32 h-32 mb-6 bg-white rounded-full p-2 shadow-2xl animate-bounce">
-          <img src="/logo.jpg" alt="Naengpa Chef Logo" className="w-full h-full object-contain rounded-full" />
-        </div>
-        <h1 className="text-4xl font-black mb-2 tracking-tight">냉파셰프</h1>
-        <p className="text-orange-100 font-medium">냉장고 파먹기의 달인</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-[50px] relative">
+      
+      {/* Smooth Splash Overlay */}
+      {showSplash && (
+        <div 
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center text-white transition-opacity duration-300"
+          style={{ backgroundColor: '#f97316' }}
+        >
+          <div 
+            className="mb-4 bg-white p-2 shadow-2xl flex items-center justify-center animate-bounce"
+            style={{ width: '120px', height: '120px', borderRadius: '9999px', overflow: 'hidden' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src="/logo.jpg" 
+              alt="Naengpa Chef Logo" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9999px' }} 
+            />
+          </div>
+          <h1 className="text-3xl font-black mb-1 tracking-tight text-white">냉파셰프</h1>
+          <p className="text-sm font-medium text-orange-100">냉장고 파먹기의 달인</p>
+        </div>
+      )}
       <header className="flex items-center justify-between p-4 bg-white shadow-sm z-10 sticky top-0">
         <h1 className="text-xl font-black text-orange-500">냉파셰프</h1>
         <div className="flex items-center gap-3">
