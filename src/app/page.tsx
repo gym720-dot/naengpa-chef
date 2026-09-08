@@ -56,7 +56,7 @@ export default function Home() {
     "냉파 꿀팁: 남은 치킨은 잘게 찢어 볶음밥에 넣으면 훌륭해요!",
     "냉파 꿀팁: 시들해진 파는 송송 썰어 냉동 보관하세요.",
     "냉파 꿀팁: 양파 껍질은 버리지 말고 육수 낼 때 사용해보세요.",
-    "AI 셰프가 냉장고 안을 샅샅이 뒤지고 있습니다..."
+    "냉파셰프가 냉장고 안을 샅샅이 뒤지고 있습니다..."
   ];
 
   useEffect(() => {
@@ -520,7 +520,7 @@ export default function Home() {
                   <>
                     <div className="flex items-center gap-2">
                       <Loader2 className="animate-spin" size={20} />
-                      <span>AI 셰프가 고민중...</span>
+                      <span>냉파셰프가 고민중...</span>
                     </div>
                     <span className="text-[10px] font-normal opacity-80 mt-0.5">{TIPS[tipIndex]}</span>
                   </>

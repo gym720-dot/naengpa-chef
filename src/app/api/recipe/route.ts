@@ -96,26 +96,50 @@ export async function POST(req: NextRequest) {
 
     contents.push({ text: prompt });
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+    const candidateModels = [
+      process.env.GEMINI_MODEL,
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+    ].filter(Boolean) as string[];
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: contents,
-      config: {
-        responseMimeType: 'application/json',
+    let responseText: string | null = null;
+    let lastError: any = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        const res = await ai.models.generateContent({
+          model: modelName,
+          contents: contents,
+          config: {
+            responseMimeType: 'application/json',
+          }
+        });
+        if (res.text) {
+          responseText = res.text;
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`Model ${modelName} failed, trying next...`, err.message || err);
+        lastError = err;
       }
-    });
+    }
 
-    if (response.text) {
-      const jsonStr = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+    if (responseText) {
+      const jsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(jsonStr);
       return NextResponse.json(parsed, { headers: corsHeaders });
     } else {
-      return NextResponse.json({ error: 'No content from model' }, { status: 500, headers: corsHeaders });
+      console.error('All Gemini models failed:', lastError);
+      return NextResponse.json({ 
+        error: '냉파셰프 서버에 일시적인 요청이 몰렸습니다. 3초 후 다시 시도해주세요!' 
+      }, { status: 500, headers: corsHeaders });
     }
 
   } catch (error: any) {
-    console.error('Gemini API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500, headers: corsHeaders });
+    console.error('Gemini API Handler Error:', error);
+    return NextResponse.json({ 
+      error: '냉파셰프 서버에 일시적인 요청이 몰렸습니다. 3초 후 다시 시도해주세요!' 
+    }, { status: 500, headers: corsHeaders });
   }
 }
